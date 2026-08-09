@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SessionId(Uuid);
 
 impl SessionId {

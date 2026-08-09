@@ -1,6 +1,7 @@
 use chrono::prelude::*;
 
 use super::ids::{MessageId, SessionId};
+use super::tool::{ToolCall, ToolCatalogue, ToolResult};
 
 #[derive(Debug, Clone)]
 pub struct Message {
@@ -8,6 +9,9 @@ pub struct Message {
     pub session_id: SessionId,
     pub role: Role,
     pub content: String,
+    pub tool_catalogue: Option<ToolCatalogue>,
+    pub tool_call: Option<ToolCall>,
+    pub tool_result: Option<ToolResult>,
     pub timestamp: DateTime<Utc>,
 }
 
@@ -18,6 +22,9 @@ impl Message {
             session_id,
             role,
             content: content.into(),
+            tool_catalogue: None,
+            tool_call: None,
+            tool_result: None,
             timestamp: Utc::now(),
         }
     }

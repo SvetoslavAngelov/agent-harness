@@ -26,15 +26,25 @@ impl Session {
         }
     }
 
-    pub fn append_message(&mut self, role: Role, content: impl Into<String>) {
+    pub fn append_text(&mut self, role: Role, content: impl Into<String>) {
         self.messages
             .push(Message::new(self.session_id, role, content));
 
         self.updated_at = Utc::now();
     }
+
+    pub fn append_message(&mut self, message: Message) {
+        self.messages.push(message);
+
+        self.updated_at = Utc::now();
+    }
+
+    pub fn get_message_history(self) -> Vec<Message> {
+        return self.messages;
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum RunStatus {
     Running,
     Cancelling,
