@@ -1,3 +1,5 @@
+//! Contains the provider-neutral state shared by sessions, tools, and clients.
+
 pub mod ids;
 pub mod message;
 pub mod session;

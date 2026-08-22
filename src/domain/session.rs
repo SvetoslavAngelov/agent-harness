@@ -1,4 +1,6 @@
-use chrono::prelude::*;
+//! Tracks one conversation's history, timestamps, and execution status.
+
+use chrono::{DateTime, Utc};
 
 use super::ids::SessionId;
 use super::message::{Message, Role};
@@ -14,21 +16,19 @@ pub struct Session {
 
 impl Session {
     pub fn new() -> Self {
-        let session_id = SessionId::generate();
         let now = Utc::now();
 
         Self {
-            session_id,
+            session_id: SessionId::generate(),
             created_at: now,
             updated_at: now,
-            messages: Vec::with_capacity(4),
+            messages: Vec::new(),
             status: RunStatus::Idle,
         }
     }
 
     pub fn append_text(&mut self, role: Role, content: impl Into<String>) {
-        self.messages
-            .push(Message::new(self.session_id, role, content));
+        self.messages.push(Message::new(role, content));
 
         self.updated_at = Utc::now();
     }
@@ -39,8 +39,8 @@ impl Session {
         self.updated_at = Utc::now();
     }
 
-    pub fn get_message_history(self) -> Vec<Message> {
-        return self.messages;
+    pub fn get_message_history(&self) -> &[Message] {
+        &self.messages
     }
 }
 

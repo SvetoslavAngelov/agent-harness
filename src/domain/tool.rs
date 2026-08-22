@@ -1,4 +1,6 @@
-use chrono::prelude::*;
+//! Defines provider-neutral tool schemas, calls, results, and execution errors.
+
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::ids::ToolCallId;
@@ -51,7 +53,7 @@ pub struct ToolResult {
     pub call_id: ToolCallId,
     pub result: Option<serde_json::Value>,
     pub error: Option<ToolError>,
-    pub started_exec: DateTime<Utc>,
+    pub started_at: DateTime<Utc>,
     pub finished_at: DateTime<Utc>,
 }
 

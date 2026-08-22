@@ -1,3 +1,6 @@
+[lints.rust]
+dead_code = "allow"
+
 [package]
 name = "agent-harness"
 version = "0.1.0"
@@ -7,6 +10,11 @@ edition = "2024"
 chrono = "0.4.45"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
+ureq = {
+    version = "3.4",
+    default-features = false,
+    features = ["rustls", "json"],
+}
 
 [dependencies.uuid]
 version = "1.24.0"
