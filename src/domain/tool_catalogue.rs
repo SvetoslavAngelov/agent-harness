@@ -5,6 +5,21 @@ use serde::{Deserialize, Serialize};
 
 use super::ids::ToolCallId;
 
+#[derive(Debug, Clone, Default)]
+pub struct ToolCatalogue {
+    tools: Vec<ToolDefinition>,
+}
+
+impl ToolCatalogue {
+    pub fn new(tools: Vec<ToolDefinition>) -> Self {
+        Self { tools }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ToolDefinition> {
+        self.tools.iter()
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ToolDefinition {
     pub name: String,
@@ -23,21 +38,6 @@ impl ToolDefinition {
             description: description.into(),
             input_schema,
         }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ToolCatalogue {
-    tools: Vec<ToolDefinition>,
-}
-
-impl ToolCatalogue {
-    pub fn new(tools: Vec<ToolDefinition>) -> Self {
-        Self { tools }
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &ToolDefinition> {
-        self.tools.iter()
     }
 }
 

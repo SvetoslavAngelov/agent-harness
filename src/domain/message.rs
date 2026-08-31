@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 
 use super::ids::MessageId;
-use super::tool::{ToolCall, ToolResult};
+use super::tool_catalogue::{ToolCall, ToolResult};
 
 #[derive(Debug, Clone)]
 pub struct Message {

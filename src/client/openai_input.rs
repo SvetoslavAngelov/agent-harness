@@ -3,7 +3,7 @@
 use serde_json::{Value, json};
 
 use crate::domain::message::{Message, MessagePart, Role};
-use crate::domain::tool::{ToolCallErrorKind, ToolResult};
+use crate::domain::tool_catalogue::{ToolCallErrorKind, ToolResult};
 
 pub(super) fn messages_to_openai_json(messages: &[Message]) -> Result<Vec<Value>, String> {
     let mut input = Vec::new();

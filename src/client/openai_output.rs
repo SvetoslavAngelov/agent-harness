@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use crate::domain::ids::ToolCallId;
 use crate::domain::message::{Message, MessagePart, Role};
-use crate::domain::tool::ToolCall;
+use crate::domain::tool_catalogue::ToolCall;
 
 pub(super) fn openai_json_to_messages(response: &Value) -> Result<Vec<Message>, String> {
     let status = response

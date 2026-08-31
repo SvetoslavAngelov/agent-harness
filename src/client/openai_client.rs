@@ -10,7 +10,7 @@ use super::openai_input::messages_to_openai_json;
 use super::openai_output::openai_json_to_messages;
 use super::openai_tool_definition::OpenAiToolDefinition;
 use crate::domain::message::Message;
-use crate::domain::tool::ToolCatalogue;
+use crate::domain::tool_catalogue::ToolCatalogue;
 
 #[derive(Clone)]
 pub struct OpenAiClient {

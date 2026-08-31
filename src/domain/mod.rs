@@ -3,4 +3,5 @@
 pub mod ids;
 pub mod message;
 pub mod session;
-pub mod tool;
+pub mod tool_catalogue;
+pub mod tool_registry;
