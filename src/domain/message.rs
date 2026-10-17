@@ -1,6 +1,7 @@
 //! Models conversation messages as ordered text, refusal, and tool-related parts.
 
 use chrono::{DateTime, Utc};
+use serde_json::Value;
 
 use super::ids::MessageId;
 use super::tool_catalogue::{ToolCall, ToolResult};
@@ -39,6 +40,8 @@ pub enum MessagePart {
     ToolCall(ToolCall),
     ToolResult(ToolResult),
     Refusal(String),
+    /// Provider state that must be replayed unchanged on the next model call.
+    Opaque(Value),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,4 +49,5 @@ pub enum Role {
     System,
     User,
     Assistant,
+    Tool,
 }

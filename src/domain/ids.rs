@@ -40,9 +40,10 @@ impl ToolCallId {
         Self(value.into())
     }
 
-    pub fn generate() -> Self {
-        Self(format!("tool_{}", Uuid::new_v4().hyphenated()))
-    }
+    // TODO
+    // Removed a generate equivalent for Tool ID Call.
+    // Normally the model that's calling the tool would
+    // generate an ID and include it its response.
 }
 
 impl std::fmt::Display for ToolCallId {

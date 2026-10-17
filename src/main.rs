@@ -19,14 +19,13 @@ fn main() {
     let mut runner = Runner::new(
         api_key,
         OpenAiClientConfig::new("gpt-5.6-luna".into()),
-        tool_registry.get_catalogue(),
+        tool_registry,
+        32,
     );
 
-    let response = runner
+    runner
         .run("What is the weather in Oxford, UK?")
         .expect("OpenAI API request failed.");
-
-    println!("{response:#?}");
 
     for message in runner.get_message_history() {
         println!("{message:#?}");

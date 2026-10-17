@@ -50,10 +50,9 @@ impl Session {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RunStatus {
-    Running,
-    Cancelling,
-    Failed,
     Idle,
+    Running,
+    Failed,
 }

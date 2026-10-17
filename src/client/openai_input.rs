@@ -16,17 +16,12 @@ pub(super) fn messages_to_openai_json(messages: &[Message]) -> Result<Vec<Value>
 }
 
 fn message_to_openai_items(message: &Message) -> Result<Vec<Value>, String> {
-    let role = match message.role {
-        Role::System => "system",
-        Role::User => "user",
-        Role::Assistant => "assistant",
-    };
-
     let mut items = Vec::new();
 
     for part in &message.parts {
         match part {
             MessagePart::Text(text) | MessagePart::Refusal(text) => {
+                let role = message_role_name(message.role)?;
                 items.push(json!({
                     "role": role,
                     "content": text,
@@ -47,6 +42,7 @@ fn message_to_openai_items(message: &Message) -> Result<Vec<Value>, String> {
                     "output": tool_result_to_string(result)?,
                 }));
             }
+            MessagePart::Opaque(item) => items.push(item.clone()),
         }
     }
 
@@ -58,6 +54,15 @@ fn message_to_openai_items(message: &Message) -> Result<Vec<Value>, String> {
     }
 
     Ok(items)
+}
+
+fn message_role_name(role: Role) -> Result<&'static str, String> {
+    match role {
+        Role::System => Ok("system"),
+        Role::User => Ok("user"),
+        Role::Assistant => Ok("assistant"),
+        Role::Tool => Err("tool messages cannot contain text parts".into()),
+    }
 }
 
 fn tool_result_to_string(result: &ToolResult) -> Result<String, String> {

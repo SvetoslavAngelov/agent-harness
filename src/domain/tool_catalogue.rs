@@ -1,7 +1,7 @@
 //! Defines provider-neutral tool schemas, calls, results, and execution errors.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::ids::ToolCallId;
 
@@ -24,14 +24,14 @@ impl ToolCatalogue {
 pub struct ToolDefinition {
     pub name: String,
     pub description: String,
-    pub input_schema: serde_json::Value,
+    pub input_schema: Value,
 }
 
 impl ToolDefinition {
     pub fn new(
         name: impl Into<String>,
         description: impl Into<String>,
-        input_schema: serde_json::Value,
+        input_schema: Value,
     ) -> Self {
         Self {
             name: name.into(),
@@ -51,10 +51,8 @@ pub struct ToolCall {
 #[derive(Debug, Clone)]
 pub struct ToolResult {
     pub call_id: ToolCallId,
-    pub result: Option<serde_json::Value>,
+    pub result: Option<Value>,
     pub error: Option<ToolError>,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]

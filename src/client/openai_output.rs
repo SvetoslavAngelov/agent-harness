@@ -36,7 +36,10 @@ pub(super) fn openai_json_to_messages(response: &Value) -> Result<Vec<Message>, 
                     arguments: required_string(item, "arguments")?,
                 }));
             }
-            Some(_) => {}
+            Some("reasoning") => parts.push(MessagePart::Opaque(item.clone())),
+            Some(item_type) => {
+                return Err(format!("unsupported output item type {item_type}"));
+            }
             None => return Err("output item is missing type".into()),
         }
     }
@@ -60,7 +63,9 @@ fn collect_message_parts(item: &Value, parts: &mut Vec<MessagePart>) -> Result<(
             Some("refusal") => {
                 parts.push(MessagePart::Refusal(required_string(part, "refusal")?));
             }
-            Some(_) => {}
+            Some(part_type) => {
+                return Err(format!("unsupported message content type {part_type}"));
+            }
             None => return Err("content part is missing type".into()),
         }
     }
