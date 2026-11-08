@@ -7,3 +7,16 @@ pub enum ClientError {
     InvalidInput(String),
     InvalidResponse(String),
 }
+
+impl std::fmt::Display for ClientError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Http(error) => write!(formatter, "HTTP request failed: {error}"),
+            Self::Api { status, body } => write!(formatter, "API returned {status}: {body}"),
+            Self::InvalidInput(message) => write!(formatter, "Invalid input: {message}"),
+            Self::InvalidResponse(message) => write!(formatter, "Invalid response: {message}"),
+        }
+    }
+}
+
+impl std::error::Error for ClientError {}

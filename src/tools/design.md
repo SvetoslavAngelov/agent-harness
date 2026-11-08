@@ -1,5 +1,11 @@
 # Job assignment through tools
 
+Implementation note: [the README](../../README.md) describes the current small
+prototype: 100 users, ten job IDs, three users per session, and the implemented
+SQLite schema and tools. This document retains the broader experiment plan;
+the two-job examples, run/suite schema, training, and reporting sections below
+are design notes rather than a description of everything currently implemented.
+
 ## Purpose
 
 Explore whether a tiny local language model can interpret varied natural-language instructions, read the available tool definitions, inspect current assignments, and make the correct edits within a constrained resource budget.

@@ -1,6 +1,7 @@
 //! Models conversation messages as ordered text, refusal, and tool-related parts.
 
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use serde_json::Value;
 
 use super::ids::MessageId;
@@ -34,7 +35,7 @@ impl Message {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum MessagePart {
     Text(String),
     ToolCall(ToolCall),
@@ -44,7 +45,8 @@ pub enum MessagePart {
     Opaque(Value),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Role {
     System,
     User,

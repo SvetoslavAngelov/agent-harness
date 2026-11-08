@@ -32,7 +32,8 @@ impl std::fmt::Display for MessageId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[serde(transparent)]
 pub struct ToolCallId(String);
 
 impl ToolCallId {

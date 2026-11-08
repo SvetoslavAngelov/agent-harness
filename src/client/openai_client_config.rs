@@ -12,12 +12,12 @@ pub struct OpenAiClientConfig {
 
 impl OpenAiClientConfig {
     pub fn new(model: String) -> Self {
-        return OpenAiClientConfig {
-            model: model,
+        OpenAiClientConfig {
+            model,
             uri: "https://api.openai.com/v1/responses".into(),
             max_output_tokens: 4096,
             reasoning_effort: ReasoningEffort::Medium,
-        };
+        }
     }
 }
 

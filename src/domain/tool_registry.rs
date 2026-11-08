@@ -2,6 +2,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 use super::tool_catalogue::{ToolCall, ToolCallErrorKind, ToolCatalogue, ToolError};
+use crate::assignment::store::AssignmentStore;
 use crate::tools::tool_interface::Tool;
 
 pub struct ToolRegistry {
@@ -20,21 +21,26 @@ impl ToolRegistry {
         self.tools.insert(name, Box::new(tool));
     }
 
-    pub fn execute(&self, tool_call: &ToolCall) -> Result<Value, ToolError> {
+    pub fn execute(
+        &self,
+        tool_call: &ToolCall,
+        store: &mut AssignmentStore,
+    ) -> Result<Value, ToolError> {
         let tool = self.tools.get(&tool_call.name).ok_or_else(|| ToolError {
             kind: ToolCallErrorKind::ExecutionFailed,
             message: format!("Unknown tool: {}", tool_call.name),
         })?;
 
-        tool.execute(&tool_call.arguments)
+        tool.execute(&tool_call.arguments, store)
     }
 
     pub fn get_catalogue(&self) -> ToolCatalogue {
-        ToolCatalogue::new(
-            self.tools
-                .values()
-                .map(|tool| tool.get_definition())
-                .collect(),
-        )
+        let mut definitions: Vec<_> = self
+            .tools
+            .values()
+            .map(|tool| tool.get_definition())
+            .collect();
+        definitions.sort_by(|left, right| left.name.cmp(&right.name));
+        ToolCatalogue::new(definitions)
     }
 }
