@@ -7,7 +7,7 @@ use crate::client::openai_client::OpenAiClient;
 use crate::client::openai_client_config::OpenAiClientConfig;
 use crate::domain::message::{Message, MessagePart, Role};
 use crate::domain::session::Session;
-use crate::domain::tool_catalogue::{ToolCall, ToolResult};
+use crate::domain::tool_catalogue::{ToolCall, ToolCallErrorKind, ToolError, ToolResult};
 use crate::domain::tool_registry::ToolRegistry;
 use crate::tools::assignment_tools::register_tools;
 
@@ -32,8 +32,10 @@ impl Runner {
             "Complete the assignment task using the available tools. Everyone means all users in this session. \
              First list assignments to discover the users, current assignments, and supported jobs. \
              Use their IDs to update only assignments that need changing. \
-             Issue exactly one tool call per response. When finished, call commit(). \
-             A commit ends the session immediately. Text alone does not complete the task.");
+             You may issue multiple tool calls per response; they execute in the order given. \
+             When finished, call commit(), placing it after any updates in the same response. \
+             A commit ends the session immediately, even if an earlier call failed. \
+             Calls after a successful commit are skipped. Text alone does not complete the task.");
 
         Self {
             client,
@@ -86,37 +88,64 @@ impl Runner {
                 store.finalise("missing_commit")?;
                 return Ok(());
             }
-            if tool_calls.len() != 1 {
-                for call in &tool_calls {
-                    store.record_tool_call(call, true)?;
+            // Persist every emitted call first. Finalisation rejects any still pending,
+            // so calls after commit are included in its frozen accounting but never run.
+            let records = tool_calls
+                .iter()
+                .map(|call| store.record_tool_call(call))
+                .collect::<TaskResult<Vec<_>>>()?;
+            for (index, (call, record_id)) in tool_calls.iter().zip(&records).enumerate() {
+                store.dispatch_tool_call(*record_id)?;
+                let (result, error) = match self.tool_registry.execute(call, store) {
+                    Ok(value) => (Some(value), None),
+                    Err(error) => (None, Some(error)),
+                };
+                let committed = call.name == "commit" && error.is_none();
+                self.record_tool_result(
+                    store,
+                    *record_id,
+                    ToolResult {
+                        call_id: call.call_id.clone(),
+                        result,
+                        error,
+                    },
+                )?;
+
+                if committed {
+                    for (skipped, id) in tool_calls[index + 1..].iter().zip(&records[index + 1..]) {
+                        self.record_tool_result(
+                            store,
+                            *id,
+                            ToolResult {
+                                call_id: skipped.call_id.clone(),
+                                result: None,
+                                error: Some(ToolError {
+                                    kind: ToolCallErrorKind::Cancelled,
+                                    message: "Not executed: an earlier commit ended the session"
+                                        .into(),
+                                }),
+                            },
+                        )?;
+                    }
+                    return Ok(());
                 }
-                store.finalise("protocol_error")?;
-                return Ok(());
-            }
-
-            let call = &tool_calls[0];
-            let record_id = store.record_tool_call(call, false)?;
-            let (result, error) = match self.tool_registry.execute(call, store) {
-                Ok(value) => (Some(value), None),
-                Err(error) => (None, Some(error)),
-            };
-            let committed = call.name == "commit" && error.is_none();
-            let result = ToolResult {
-                call_id: call.call_id.clone(),
-                result,
-                error,
-            };
-            store.record_tool_result(record_id, &result)?;
-            let message = Message::from_parts(Role::Tool, vec![MessagePart::ToolResult(result)]);
-            store.record_message(&message)?;
-            self.session.append_message(message);
-
-            if committed {
-                return Ok(());
             }
         }
 
         store.finalise("network_limit")?;
+        Ok(())
+    }
+
+    fn record_tool_result(
+        &mut self,
+        store: &AssignmentStore,
+        id: i64,
+        result: ToolResult,
+    ) -> TaskResult<()> {
+        store.record_tool_result(id, &result)?;
+        let message = Message::from_parts(Role::Tool, vec![MessagePart::ToolResult(result)]);
+        store.record_message(&message)?;
+        self.session.append_message(message);
         Ok(())
     }
 }

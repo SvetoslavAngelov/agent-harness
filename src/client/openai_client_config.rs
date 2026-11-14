@@ -8,6 +8,7 @@ pub struct OpenAiClientConfig {
     pub uri: String,
     pub max_output_tokens: u32,
     pub reasoning_effort: ReasoningEffort,
+    pub parallel_tool_calls: bool,
 }
 
 impl OpenAiClientConfig {
@@ -17,6 +18,7 @@ impl OpenAiClientConfig {
             uri: "https://api.openai.com/v1/responses".into(),
             max_output_tokens: 4096,
             reasoning_effort: ReasoningEffort::Medium,
+            parallel_tool_calls: true,
         }
     }
 }

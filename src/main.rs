@@ -38,6 +38,7 @@ fn main() -> TaskResult<()> {
             "model": config.model,
             "max_output_tokens": config.max_output_tokens,
             "reasoning_effort": config.reasoning_effort,
+            "parallel_tool_calls": config.parallel_tool_calls,
             "max_model_requests": MAX_MODEL_REQUESTS,
         }),
     )?;

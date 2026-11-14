@@ -57,12 +57,20 @@ and descriptions are recorded with the run. Each update and its mutation event
 are saved in one SQLite transaction; `commit()` finalises the task rather than
 committing a transaction spanning the whole run.
 
-The model is instructed to list first and emit exactly one tool call per response.
-Multiple calls are recorded as rejected and execute no tools. Text without a call
-ends the run as `missing_commit`. A run allows at most 20 model requests, with no
-application retries; the twentieth response is processed before enforcing the
-limit. API failures finalise as `infrastructure_error`. An abrupt process exit
-can leave a `running` session on disk; automatic recovery is not implemented.
+The model is instructed to list first and may emit multiple tool calls per response.
+Responses requests explicitly enable `parallel_tool_calls`; the harness executes
+the returned calls sequentially in their emitted order. Each call gets its own
+result, including recoverable errors, and earlier successful writes remain in place.
+The model may put updates and a final `commit()` in the same response. A valid
+commit ends the run even if earlier calls failed; calls after it are recorded as
+rejected and never execute. Frozen results count dispatched calls separately from
+those skipped after commit. Text without a call ends the run as `missing_commit`.
+
+A run allows at most 20 model requests, with no application retries; the entire
+twentieth response is processed before enforcing the limit. Model requests and
+tool calls are counted separately, so a batch can use several tools in one request.
+API failures finalise as `infrastructure_error`. An abrupt process exit can leave
+a `running` session on disk; automatic recovery is not implemented.
 
 ## Storage and scoring
 
@@ -96,6 +104,18 @@ Inspect recent results:
 sqlite3 assignments.sqlite3 \
   "SELECT session_id, result FROM session_results ORDER BY rowid DESC LIMIT 1;"
 ```
+
+Run controlled end-to-end checks without an API key:
+
+```sh
+cargo build
+python3 scripts/check_assignment_harness.py
+```
+
+These use a loopback mock Responses endpoint and the real binary, tools, and SQLite
+evaluator. They cover incorrect and corrected state, no-op requests, recoverable
+tool errors, missing/premature commits, request 20, batches, calls after commit,
+and API errors.
 
 Task generation and SQLite persistence are in `src/assignment/`, the three tools
 are in `src/tools/assignment_tools.rs`, and the bounded loop is in

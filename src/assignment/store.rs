@@ -224,27 +224,40 @@ impl AssignmentStore {
         Ok(())
     }
 
-    /// Record before dispatch so the terminal commit counts in its own result.
-    pub fn record_tool_call(&self, call: &ToolCall, rejected: bool) -> TaskResult<i64> {
+    /// Retain emitted order before dispatch, including calls a commit may skip.
+    pub fn record_tool_call(&self, call: &ToolCall) -> TaskResult<i64> {
         self.connection.execute(
             "INSERT INTO tool_calls
              (session_id, model_request, call_id, name, arguments, status)
              VALUES (?1, (SELECT model_calls FROM sessions WHERE session_id = ?1),
-                     ?2, ?3, ?4, ?5)",
+                     ?2, ?3, ?4, 'pending')",
             params![
                 self.session_id,
                 call.call_id.to_string(),
                 call.name,
                 call.arguments,
-                if rejected { "rejected" } else { "dispatched" }
             ],
         )?;
         Ok(self.connection.last_insert_rowid())
     }
 
+    pub fn dispatch_tool_call(&self, id: i64) -> TaskResult<()> {
+        let changed = self.connection.execute(
+            "UPDATE tool_calls SET status = 'dispatched'
+             WHERE id = ?1 AND session_id = ?2 AND status = 'pending'
+             AND EXISTS (SELECT 1 FROM sessions WHERE session_id = ?2 AND status = 'running')",
+            params![id, self.session_id],
+        )?;
+        if changed != 1 {
+            return Err("Tool call is not pending in an active session".into());
+        }
+        Ok(())
+    }
+
     pub fn record_tool_result(&self, id: i64, result: &ToolResult) -> TaskResult<()> {
         self.connection.execute(
-            "UPDATE tool_calls SET status = ?2, output = ?3, error = ?4,
+            "UPDATE tool_calls SET status = CASE WHEN status = 'rejected' THEN status ELSE ?2 END,
+             output = ?3, error = ?4,
              finished_at = CURRENT_TIMESTAMP WHERE id = ?1 AND session_id = ?5",
             params![
                 id,
@@ -292,6 +305,12 @@ impl AssignmentStore {
         if let Some(existing) = existing {
             return Ok(serde_json::from_str(&existing)?);
         }
+
+        transaction.execute(
+            "UPDATE tool_calls SET status = 'rejected', finished_at = CURRENT_TIMESTAMP
+             WHERE session_id = ?1 AND status = 'pending'",
+            [&self.session_id],
+        )?;
 
         // Compare both complete sets, detecting omitted or extra people as well as wrong jobs.
         let actual = transaction

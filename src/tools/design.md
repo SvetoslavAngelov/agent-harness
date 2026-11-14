@@ -12,6 +12,8 @@ Explore whether a tiny local language model can interpret varied natural-languag
 
 Start with the configured GPT Luna to validate the task, tools, and evaluator. The expectation is that this assignment task is straightforward for a model of that class; API and infrastructure errors may be more prominent than incorrect decisions. Record both separately rather than assuming every failed run is a reasoning failure. Once the task is stable, fine-tune FunctionGemma 270M on verified demonstrations and repeat the same experiments. Teacher success establishes that the task is workable; student capability must be measured separately.
 
+Luna establishes the larger model's reference performance. Measure how closely the untuned and tuned student approach it in correctness, requests, latency, and resource use. Let each model batch actions and use documented model-specific prompts and formats; do not restrict Luna to a weaker interaction pattern to accommodate the student. Keep task semantics and public information consistent, and report model-specific settings and budgets as part of each measured system.
+
 Keep the implementation small: a seeded SQLite database on disk, three tools, and a deterministic evaluator. Ordinary code owns storage and validates individual operations. The model resolves the user's intent, chooses which assignments to update, and explicitly calls `commit()` when it considers the task complete. It receives structured observations and needs no SQL knowledge.
 
 ## Task
@@ -28,7 +30,7 @@ Example request:
 | Alex | Maintenance | Inspection | Update |
 | Lee | Inspection | Inspection | None |
 
-The efficient solution makes one list call, two update calls, and one `commit()` call: four tool calls across four model requests. The model must recognise that Sam needs reassignment, Alex must also change, and Lee is already correctly assigned, then signal completion.
+The efficient solution makes one list call, two update calls, and one `commit()` call: four tool calls, potentially across just two model requests when the second response batches updates and commit. The model must recognise that Sam needs reassignment, Alex must also change, and Lee is already correctly assigned, then signal completion.
 
 “Everyone else” means every other person returned by the listing tool. For a request that names only Sam and says nothing about others, everyone else's assignment must remain unchanged. Requests are initially unambiguous and achievable, with unique display names and known people.
 
@@ -66,7 +68,7 @@ Persist events as the session progresses, not only at finalisation. Use a monoto
 
 ## Tools
 
-The model receives these three tool definitions with the user request, plus instructions to issue one tool call per response and finish with `commit()`. Discovery of people and current state happens through the listing tool; no separate registry or inspection call is required.
+The model receives these three tool definitions with the user request, plus instructions to list first, batch calls when useful, and finish with `commit()`. Discovery of people and current state happens through the listing tool; no separate registry or inspection call is required.
 
 ### `list_assignments()`
 
@@ -124,14 +126,14 @@ The same internal finalisation operation is used when the runner stops a run. Re
 
 - Every trial starts with fresh working rows and a fresh conversation, while prior runs remain on disk.
 - Names, IDs, roster membership, and supported job types remain fixed during the trial. Only explicit assignment updates change business state.
-- Tools execute sequentially, without background changes or external services. Initially require exactly one tool call per model response, for both Luna and the student. If a response contains multiple calls, execute none and finalise with `protocol_error`; retain the emitted calls as rejected protocol evidence.
+- A response may contain one or multiple tool calls. Enable provider support for multiple calls and execute them sequentially in emitted order, without background changes or external services. Return one correlated result per call. Record all emitted calls before dispatch; a valid commit finalises immediately and marks any remaining calls as rejected without executing them.
 - The model normally lists assignments, updates people whose assignments differ from the request, and calls `commit()`. A second listing is optional because updates return their resulting state. Do not require a fixed update order.
 - A response without a tool call does not satisfy the completion requirement. Finalise with `missing_commit`, retaining any state match as a separate grade.
 - An already-satisfied request can be completed with `list_assignments()` followed by `commit()`, with zero updates.
 - Allow at most **20 actual model network requests**, counting failed requests as well as successful ones. Increment the counter when a request is attempted, not when checking whether another request is allowed. Initially use no automatic API retries; any later retry policy must consume this same budget and be recorded.
-- Process the twentieth response and its single tool call before deciding whether to stop. A valid `commit()` in that response is normal completion. If it does not finalise the run, the runner invokes finalisation with `network_limit` before any twenty-first request. Forced finalisation makes no model request.
-- The one-call protocol permits at most 20 dispatched tool calls, including the model's commit. Declare output and context limits too, and ensure generated tasks have reference solutions that fit within the budget.
-- Recoverable tool errors return to the model and consume the request already used. Terminal API/infrastructure errors finalise with `infrastructure_error` when storage is available. These errors remain distinct from wrong tool decisions.
+- Process the entire twentieth response before deciding whether to stop. A valid `commit()` in that response is normal completion. If it does not finalise the run, the runner invokes finalisation with `network_limit` before any twenty-first request. Forced finalisation makes no model request.
+- Count model requests and dispatched tool calls separately. The 20-request limit does not impose a 20-tool-call limit. Declare output and context limits too, and ensure generated tasks have reference solutions that fit within the budget.
+- Recoverable tool errors produce individual results; later calls in the batch still execute. Earlier writes are not rolled back. A valid commit after an error still grades the resulting state, so an incorrect plan can fail rather than being silently repaired by the harness. Terminal API/infrastructure errors finalise with `infrastructure_error` when storage is available. These errors remain distinct from wrong tool decisions.
 
 Finalisation reasons are `model_commit`, `network_limit`, `missing_commit`, `protocol_error`, `infrastructure_error`, and `interrupted`. Baselines that use a deterministic executor record `executor_commit` for normal completion. The origin is set by the harness, not supplied in tool arguments. Preserve a more specific error category alongside the reason where available.
 
@@ -192,7 +194,7 @@ Build the tool-using configuration first and validate it with Luna. Then compare
 | Model translator | The model uses the public roster to resolve names and produces formal intent; ordinary code applies the necessary updates and commits |
 | Tool-using model | The model lists assignments, interprets the request, chooses individual updates, and explicitly commits |
 
-All approaches receive the same request, tool definitions, and access to public state. Neither baseline receives the generator's reference intent or reads private database state to select actions. The deterministic executor uses the same listing, update, and commit operations, and its calls and execution time count in the comparison. It can reuse the listing already obtained for name resolution because the environment has no concurrent changes. Record executor-originated calls separately from model-originated calls. Baseline completion is not evidence that its model learned when to call `commit()`; that measurement belongs to the tool-using configuration. The one-call response protocol applies to tool-using turns; a translator's structured intent is its declared output contract.
+All approaches receive the same request, tool definitions, and access to public state. Neither baseline receives the generator's reference intent or reads private database state to select actions. The deterministic executor uses the same listing, update, and commit operations, and its calls and execution time count in the comparison. It can reuse the listing already obtained for name resolution because the environment has no concurrent changes. Record executor-originated calls separately from model-originated calls. Baseline completion is not evidence that its model learned when to call `commit()`; that measurement belongs to the tool-using configuration. Tool-using responses may contain batches; a translator's structured intent is its declared output contract.
 
 Reject invalid translated intents before execution and finalise with `protocol_error` and an intent-rejection category. Parser rejection counts as failure on these supported requests. Compare translator and agent configurations using the same model checkpoint and documented prompts, decoding settings, and budgets. Repeat the model comparisons for the untuned student, tuned student, and teacher.
 
@@ -260,25 +262,23 @@ input = task instruction
       + all preceding assistant tool calls
       + their tool results and errors, in conversation order
 
-target = next assistant tool call
+target = next assistant response, including its complete ordered tool-call batch
 ```
 
-Tool results are essential: they tell the model which people exist, what their assignments were, and whether earlier actions succeeded. Include the full preceding history, not just the last call. Do not include future responses, the ground-truth table, final grades, or private provider reasoning in the training input. The target is one observed valid next action; it need not be the only correct update order.
+Tool results are essential: they tell the model which people exist, what their assignments were, and whether earlier actions succeeded. Include the full preceding history, not just the last call. Do not include future responses, the ground-truth table, final grades, or private provider reasoning in the training input. Preserve the teacher's response boundaries: a batch is one target, and no result from within that batch belongs in its input. The target is one observed valid response; it need not be the only correct update order or batching choice.
 
-For the example task, one verified run yields four training examples. Each row below also includes the original instruction and all three tool definitions:
+For the example task, a verified run that batches updates and commit yields two training examples. Each row below also includes the original instruction and all three tool definitions:
 
-| Example | Preceding history in the input | Target call |
+| Example | Preceding history in the input | Target response |
 | --- | --- | --- |
 | 1 | No calls yet | `list_assignments()` |
-| 2 | Listing call and returned roster | `update_assignment("p17", "maintenance")` |
-| 3 | All preceding history, including Sam's successful update and result | `update_assignment("p42", "inspection")` |
-| 4 | All preceding history, including Alex's successful update and result | `commit()` |
+| 2 | Listing call and returned roster | `update_assignment("p17", "maintenance")`, `update_assignment("p42", "inspection")`, `commit()` |
 
 An already-satisfied run yields a listing example and a commit example, with no update examples. Include such cases so the student learns to stop without unnecessary edits. A model commit is a training target only when the run passes the demonstration criteria; committing prematurely must not be copied as correct behaviour.
 
-Train with loss on the target assistant completion, including its call-ending tokens. Earlier messages and tool results supply context; they are not output targets. During supervised training the tool results are recorded data, not live database operations. At inference the runner executes each generated call and feeds back the actual result before requesting the next action.
+Train with loss on the target assistant completion, including its call-ending tokens. Earlier messages and tool results supply context; they are not output targets. During supervised training the tool results are recorded data, not live database operations. At inference the runner executes the generated batch in order and feeds back its actual results before requesting the next response, unless a commit ended the run.
 
-A complete conversation can also be a training example with loss restricted to assistant outputs; one-call targets are a deliberate initial format, not a fundamental limitation of supervised fine-tuning. Explicit history-to-next-call examples make the intended decision boundary easy to inspect. TRL supports tool-call conversations with tool results and schemas, as well as completion-only training; verify the loss mask and template behaviour on the selected runtime. [TRL SFT documentation](https://huggingface.co/docs/trl/en/sft_trainer)
+A complete conversation can also be a training example with loss restricted to assistant outputs. Explicit history-to-next-response examples make response boundaries and batches easy to inspect. TRL supports tool-call conversations with tool results and schemas, as well as completion-only training; verify the loss mask and template behaviour on the selected runtime. [TRL SFT documentation](https://huggingface.co/docs/trl/en/sft_trainer)
 
 Store provider-neutral calls and results, then export them using FunctionGemma's documented tool declaration, call, response, and turn markers. Use the same tokenizer, serialization, and stopping rules during training and inference. Do not copy Luna's provider-specific opaque state into the student dataset. Keep full bounded history initially; any later context truncation or summarisation is a versioned configuration applied consistently to training and evaluation.
 
@@ -291,10 +291,10 @@ After relevant prompt, tool, parser, or model changes, rerun development tasks a
 Use this sequence:
 
 1. Implement session-bound task creation, on-disk SQLite seeding, all three tools, durable event/mutation logging, and the deterministic finalisation/grading operation. Verify a scripted solution and independent grader fixtures.
-2. Update the runner to enforce the one-call protocol, stop immediately on commit, and finalise at the 20-request boundary or other terminal exit. Run the Luna development pilot and refine the task until the tools and intended behaviour are stable.
+2. Support batched tool responses, stop immediately on commit, and finalise at the 20-request boundary or other terminal exit. Run the Luna development pilot and refine the task until the tools and intended behaviour are stable.
 3. Freeze the task contract and held-out suite. Run an untuned student baseline before investing in a large training corpus.
 4. Generate teacher demonstrations from training episodes. Accept successful demonstrations only after they pass the independent grader and include a model commit; record rejection rates by task family.
-5. Export the verified runs into history-to-next-call examples in FunctionGemma's format and fine-tune the student. Include already-satisfied cases, commit decisions, and valid alternative update orders. Keep training examples out of the frozen evaluation suite.
+5. Export the verified runs into history-to-next-response examples in FunctionGemma's format and fine-tune the student. Preserve batches and include already-satisfied cases, commit decisions, and valid alternative update orders. Keep training examples out of the frozen evaluation suite.
 6. Repeat the same evaluation for teacher, untuned student, and tuned student, including translator and parser baselines where applicable.
 
 Record model/checkpoint identifiers, tokenizer and chat format, prompts, decoding settings, context policy, training seeds, dataset versions, runtime, quantisation, hardware, and code revision. Keep public information and tool permissions equivalent across configurations. Any format adapter or constrained decoding is part of the measured system, not an unreported advantage.

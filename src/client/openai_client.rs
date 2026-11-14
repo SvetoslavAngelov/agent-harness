@@ -81,6 +81,7 @@ impl OpenAiClient {
                 "effort": self.config.reasoning_effort,
             },
             "tools": self.tools,
+            "parallel_tool_calls": self.config.parallel_tool_calls,
         }))
     }
 }
