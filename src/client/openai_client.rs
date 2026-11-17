@@ -1,7 +1,5 @@
 //! Sends domain messages to the OpenAI Responses API and normalizes its output.
 
-use std::time::Duration;
-
 use serde_json::{Value, json};
 
 use super::client_error::ClientError;
@@ -23,7 +21,7 @@ pub struct OpenAiClient {
 impl OpenAiClient {
     pub fn new(api_key: String, config: OpenAiClientConfig, tool_catalogue: ToolCatalogue) -> Self {
         let http_config = ureq::Agent::config_builder()
-            .timeout_global(Some(Duration::from_secs(30)))
+            .timeout_global(Some(config.request_timeout))
             .http_status_as_error(false)
             .build();
 

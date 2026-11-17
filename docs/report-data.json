@@ -1,0 +1,212 @@
+{
+  "date": "2026-11-17",
+  "model": "FunctionGemma 270M",
+  "training": {
+    "demonstrations": 5000,
+    "lora_rank": 16,
+    "trainable_parameters_approx": 3800000,
+    "teacher": "GPT Luna"
+  },
+  "benchmark": {
+    "cases": 100,
+    "seeds": [
+      1001,
+      1100
+    ],
+    "checkpoint_sha256": "883d5b2fcbed22d1539ab70bd31ccb7ffa41652c35e454bf7cc749242eab4c62",
+    "cases_sha256": "f80724b49f0bb897be47d3b0334598a9682f099331f3d06818de5f51861db1af"
+  },
+  "systems": [
+    {
+      "label": "Base \u00b7 Mac",
+      "attempts": 100,
+      "totals": {
+        "success": 0
+      },
+      "success_rate": 0.0,
+      "mean_tool_calls": 1.22,
+      "mean_requests": 1.79,
+      "by_task_type": {
+        "everyone": {
+          "attempts": 30,
+          "success": 0
+        },
+        "one_and_others": {
+          "attempts": 36,
+          "success": 0
+        },
+        "one_user": {
+          "attempts": 34,
+          "success": 0
+        }
+      },
+      "task_seconds": {
+        "mean": 5.40315395,
+        "median": 3.7631775000000003,
+        "p95": 11.08919
+      }
+    },
+    {
+      "label": "LoRA \u00b7 Mac",
+      "attempts": 100,
+      "totals": {
+        "success": 95
+      },
+      "success_rate": 0.95,
+      "mean_tool_calls": 3.8,
+      "mean_requests": 2.99,
+      "by_task_type": {
+        "everyone": {
+          "attempts": 30,
+          "success": 29
+        },
+        "one_and_others": {
+          "attempts": 36,
+          "success": 32
+        },
+        "one_user": {
+          "attempts": 34,
+          "success": 34
+        }
+      },
+      "task_seconds": {
+        "mean": 8.58625677,
+        "median": 8.3887945,
+        "p95": 10.665266
+      }
+    },
+    {
+      "label": "Luna \u00b7 hosted",
+      "attempts": 100,
+      "totals": {
+        "success": 100
+      },
+      "success_rate": 1.0,
+      "mean_tool_calls": 3.79,
+      "mean_requests": 3.03,
+      "by_task_type": {
+        "everyone": {
+          "attempts": 30,
+          "success": 30
+        },
+        "one_and_others": {
+          "attempts": 36,
+          "success": 36
+        },
+        "one_user": {
+          "attempts": 34,
+          "success": 34
+        }
+      },
+      "task_seconds": {
+        "mean": 5.79035012,
+        "median": 5.787011,
+        "p95": 7.809699
+      }
+    },
+    {
+      "label": "LoRA \u00b7 Pi 5",
+      "attempts": 100,
+      "totals": {
+        "success": 97
+      },
+      "success_rate": 0.97,
+      "mean_tool_calls": 3.82,
+      "mean_requests": 2.99,
+      "by_task_type": {
+        "everyone": {
+          "attempts": 30,
+          "success": 30
+        },
+        "one_and_others": {
+          "attempts": 36,
+          "success": 33
+        },
+        "one_user": {
+          "attempts": 34,
+          "success": 34
+        }
+      },
+      "task_seconds": {
+        "mean": 36.83872292307,
+        "median": 38.861599087499826,
+        "p95": 51.94479966199992
+      }
+    }
+  ],
+  "pi": {
+    "task_seconds_success": {
+      "count": 97,
+      "mean": 36.640417121010316,
+      "median": 38.79243401800022,
+      "p95": 51.95619287400041,
+      "max": 52.60592988799999
+    },
+    "ttft_first_request": {
+      "count": 100,
+      "mean": 1.3853364161199944,
+      "median": 1.3876813934998609,
+      "p95": 1.4079133809991617,
+      "max": 1.4130088310002975
+    },
+    "ttft_all_requests": {
+      "count": 299,
+      "mean": 2.0688068447592296,
+      "median": 2.210095510999963,
+      "p95": 2.8899873500004105,
+      "max": 2.9425411539996276
+    },
+    "harness_peak_rss_kib": {
+      "count": 100,
+      "mean": 6910.4,
+      "median": 7200.0,
+      "p95": 7248,
+      "max": 7248
+    },
+    "model_server": {
+      "runtime": {
+        "device": "cpu",
+        "dtype": "torch.float32",
+        "torch": "2.9.1+cpu",
+        "transformers": "4.57.6"
+      },
+      "torch_threads": 4,
+      "torch_interop_threads": 1,
+      "torch_cpu_capability": "DEFAULT",
+      "python": "3.13.5",
+      "engine_before_load": {
+        "rss_kib": 314912,
+        "pss_kib": 306848,
+        "peak_rss_kib": 314912,
+        "swap_kib": 0
+      },
+      "loaded_idle": {
+        "rss_kib": 633904,
+        "pss_kib": 625840,
+        "peak_rss_kib": 686368,
+        "swap_kib": 0
+      },
+      "model_load_seconds": 1.9138361500001793,
+      "model_tensor_storage_bytes": 1072393732,
+      "startup_to_ready_seconds": 5.203337304999877,
+      "warmed_idle": {
+        "rss_kib": 1685776,
+        "pss_kib": 1677531,
+        "peak_rss_kib": 2340064,
+        "swap_kib": 0
+      },
+      "end_of_run": {
+        "rss_kib": 1686000,
+        "pss_kib": 1677691,
+        "peak_rss_kib": 2340640,
+        "swap_kib": 0
+      }
+    },
+    "peak_task_end_temperature_c": 56.75,
+    "end_thermal": {
+      "temperature_c": 55.1,
+      "throttled": "throttled=0x0"
+    }
+  },
+  "model_weight_file_bytes": 1072419256
+}

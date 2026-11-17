@@ -6,7 +6,7 @@ mod domain;
 mod session;
 mod tools;
 
-use std::path::Path;
+use std::{num::NonZeroU64, path::Path, time::Duration};
 
 use crate::assignment::store::{AssignmentStore, TaskResult};
 use crate::client::openai_client_config::OpenAiClientConfig;
@@ -30,6 +30,16 @@ fn main() -> TaskResult<()> {
     if let Ok(uri) = std::env::var("OPENAI_API_URL") {
         config.uri = uri;
     }
+    match std::env::var("OPENAI_REQUEST_TIMEOUT_SECONDS") {
+        Ok(seconds) => {
+            let seconds = seconds
+                .parse::<NonZeroU64>()
+                .map_err(|_| "OPENAI_REQUEST_TIMEOUT_SECONDS must be a positive integer")?;
+            config.request_timeout = Duration::from_secs(seconds.get());
+        }
+        Err(std::env::VarError::NotPresent) => {}
+        Err(error) => return Err(error.into()),
+    }
     let session = Session::new();
     let mut store = AssignmentStore::create(Path::new(&database_path), session.session_id, seed)?;
     store.record_event(
@@ -37,6 +47,7 @@ fn main() -> TaskResult<()> {
         serde_json::json!({
             "model": config.model,
             "max_output_tokens": config.max_output_tokens,
+            "request_timeout_seconds": config.request_timeout.as_secs(),
             "reasoning_effort": config.reasoning_effort,
             "parallel_tool_calls": config.parallel_tool_calls,
             "max_model_requests": MAX_MODEL_REQUESTS,
