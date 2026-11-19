@@ -17,31 +17,36 @@ pub struct OpenAiClient {
     api_key: String,
     config: OpenAiClientConfig,
     http: ureq::Agent,
-    tools: Vec<OpenAiToolDefinition>,
 }
 
 impl OpenAiClient {
-    pub fn new(api_key: String, config: OpenAiClientConfig, tool_catalogue: ToolCatalogue) -> Self {
+    pub fn new(api_key: String, config: OpenAiClientConfig) -> Self {
         let http_config = ureq::Agent::config_builder()
-            .timeout_global(Some(Duration::from_secs(30)))
+            .timeout_global(Some(Duration::from_secs(60)))
             .http_status_as_error(false)
             .build();
-
-        let tools = tool_catalogue
-            .iter()
-            .map(OpenAiToolDefinition::from)
-            .collect();
 
         Self {
             api_key,
             config,
             http: ureq::Agent::new_with_config(http_config),
-            tools,
         }
     }
 
-    pub fn call(&self, messages: &[Message]) -> Result<Vec<Message>, ClientError> {
-        let request = self.build_request(messages)?;
+    pub fn config(&self) -> &OpenAiClientConfig {
+        &self.config
+    }
+
+    pub fn request_timeout(&self) -> Option<Duration> {
+        self.http.config().timeouts().global
+    }
+
+    pub fn call(
+        &self,
+        messages: &[Message],
+        tools: &ToolCatalogue,
+    ) -> Result<Vec<Message>, ClientError> {
+        let request = self.build_request(messages, tools)?;
         let authorization = format!("Bearer {}", self.api_key);
 
         let mut response = self
@@ -70,8 +75,13 @@ impl OpenAiClient {
         openai_json_to_messages(&response_json).map_err(ClientError::InvalidResponse)
     }
 
-    fn build_request(&self, messages: &[Message]) -> Result<Value, ClientError> {
+    fn build_request(
+        &self,
+        messages: &[Message],
+        tools: &ToolCatalogue,
+    ) -> Result<Value, ClientError> {
         let input = messages_to_openai_json(messages).map_err(ClientError::InvalidInput)?;
+        let tools: Vec<_> = tools.iter().map(OpenAiToolDefinition::from).collect();
 
         Ok(json!({
             "model": self.config.model,
@@ -80,7 +90,8 @@ impl OpenAiClient {
             "reasoning": {
                 "effort": self.config.reasoning_effort,
             },
-            "tools": self.tools,
+            "tools": tools,
+            "parallel_tool_calls": self.config.parallel_tool_calls,
         }))
     }
 }

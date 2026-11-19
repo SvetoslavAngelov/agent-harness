@@ -3,7 +3,7 @@
 use serde_json::{Value, json};
 
 use crate::domain::message::{Message, MessagePart, Role};
-use crate::domain::tool_catalogue::{ToolCallErrorKind, ToolResult};
+use crate::domain::tool_catalogue::ToolResult;
 
 pub(super) fn messages_to_openai_json(messages: &[Message]) -> Result<Vec<Value>, String> {
     let mut input = Vec::new();
@@ -69,13 +69,7 @@ fn tool_result_to_string(result: &ToolResult) -> Result<String, String> {
     match (&result.result, &result.error) {
         (Some(Value::String(text)), None) => Ok(text.clone()),
         (Some(value), None) => Ok(value.to_string()),
-        (None, Some(error)) => Ok(json!({
-            "error": {
-                "kind": tool_error_kind_name(error.kind),
-                "message": error.message,
-            }
-        })
-        .to_string()),
+        (None, Some(error)) => Ok(json!({ "error": error }).to_string()),
         (Some(_), Some(_)) => Err(format!(
             "tool result {} contains both a value and an error",
             result.call_id
@@ -84,13 +78,5 @@ fn tool_result_to_string(result: &ToolResult) -> Result<String, String> {
             "tool result {} contains neither a value nor an error",
             result.call_id
         )),
-    }
-}
-
-fn tool_error_kind_name(kind: ToolCallErrorKind) -> &'static str {
-    match kind {
-        ToolCallErrorKind::InvalidArguments => "invalid_arguments",
-        ToolCallErrorKind::ExecutionFailed => "execution_failed",
-        ToolCallErrorKind::Cancelled => "cancelled",
     }
 }

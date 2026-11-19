@@ -1,3 +1,5 @@
-//! Houses session storage and the serialized model/tool execution loop.
+//! Runs model conversations.
 
 pub mod runner;
+
+pub type HarnessResult<T> = Result<T, Box<dyn std::error::Error>>;

@@ -1,4 +1,3 @@
-//! Houses all tool definitions and tool runners.
+//! Defines the shared interface for task tools.
 
 pub mod tool_interface;
-pub mod weather_tool;

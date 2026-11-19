@@ -1,1 +1,9 @@
 /target
+/assignments.sqlite3*
+/docs/experiments/
+.env
+.env.*
+.DS_Store
+__pycache__/
+*.safetensors
+*.gguf

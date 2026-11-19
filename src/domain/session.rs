@@ -1,58 +1,67 @@
-//! Tracks one conversation's history, timestamps, and execution status.
+//! Holds a conversation and any experiment data collected during a run.
 
-use chrono::{DateTime, Utc};
+use rusqlite::{Connection, params};
+use serde::Serialize;
+use serde_json::{Map, Value};
 
-use super::ids::SessionId;
+use super::ids::{SessionId, serialize_display};
 use super::message::{Message, Role};
+use crate::session::HarnessResult;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Session {
+    #[serde(serialize_with = "serialize_display")]
     pub session_id: SessionId,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
     pub messages: Vec<Message>,
-    pub status: RunStatus,
-    pub network_calls: u16,
+    pub data: Map<String, Value>,
+    pub stats: RunStats,
+}
+
+#[derive(Debug, Default, Serialize)]
+pub struct RunStats {
+    pub model_calls: usize,
+    pub tool_calls: Vec<(String, String)>,
 }
 
 impl Session {
     pub fn new() -> Self {
-        let now = Utc::now();
-
         Self {
             session_id: SessionId::generate(),
-            created_at: now,
-            updated_at: now,
             messages: Vec::new(),
-            status: RunStatus::Idle,
-            network_calls: 0,
+            data: Map::new(),
+            stats: RunStats::default(),
         }
     }
 
     pub fn append_text(&mut self, role: Role, content: impl Into<String>) {
-        self.messages.push(Message::new(role, content));
-
-        self.updated_at = Utc::now();
+        self.append_message(Message::new(role, content));
     }
 
     pub fn append_message(&mut self, message: Message) {
         self.messages.push(message);
-
-        self.updated_at = Utc::now();
-    }
-
-    pub fn update_network_calls(&mut self) {
-        self.network_calls += 1;
     }
 
     pub fn get_message_history(&self) -> &[Message] {
         &self.messages
     }
-}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RunStatus {
-    Idle,
-    Running,
-    Failed,
+    pub fn set(&mut self, key: &str, value: impl Serialize) -> HarnessResult<()> {
+        self.data.insert(key.into(), serde_json::to_value(value)?);
+        Ok(())
+    }
+
+    /// Saves the current conversation, counters, and experiment data as one snapshot.
+    pub fn save(&self, connection: &Connection) -> HarnessResult<()> {
+        connection.execute_batch(include_str!("../session/schema.sql"))?;
+        connection.execute(
+            "INSERT OR IGNORE INTO sessions (session_id) VALUES (?1)",
+            [self.session_id.to_string()],
+        )?;
+        connection.execute(
+            "INSERT INTO session_snapshots (session_id, data) VALUES (?1, ?2)
+             ON CONFLICT(session_id) DO UPDATE SET data = excluded.data",
+            params![self.session_id.to_string(), serde_json::to_string(self)?],
+        )?;
+        Ok(())
+    }
 }

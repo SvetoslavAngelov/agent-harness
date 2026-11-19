@@ -41,27 +41,42 @@ impl ToolDefinition {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ToolCall {
     pub call_id: ToolCallId,
     pub name: String,
     pub arguments: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ToolResult {
     pub call_id: ToolCallId,
     pub result: Option<Value>,
     pub error: Option<ToolError>,
 }
 
-#[derive(Debug, Clone)]
+impl ToolResult {
+    pub fn new(call_id: ToolCallId, output: Result<Value, ToolError>) -> Self {
+        let (result, error) = match output {
+            Ok(value) => (Some(value), None),
+            Err(error) => (None, Some(error)),
+        };
+        Self {
+            call_id,
+            result,
+            error,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ToolError {
     pub kind: ToolCallErrorKind,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ToolCallErrorKind {
     InvalidArguments,
     ExecutionFailed,
