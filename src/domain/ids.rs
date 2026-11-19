@@ -2,6 +2,13 @@
 
 use uuid::Uuid;
 
+pub fn serialize_display<T: std::fmt::Display, S: serde::Serializer>(
+    value: &T,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.collect_str(value)
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SessionId(Uuid);
 
@@ -40,11 +47,6 @@ impl ToolCallId {
     pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())
     }
-
-    // TODO
-    // Removed a generate equivalent for Tool ID Call.
-    // Normally the model that's calling the tool would
-    // generate an ID and include it its response.
 }
 
 impl std::fmt::Display for ToolCallId {

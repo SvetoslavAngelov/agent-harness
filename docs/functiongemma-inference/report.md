@@ -114,15 +114,8 @@ training steps.
 P95 uses the nearest-rank definition. GNU time measured harness peak RSS.
 Linux process files measured server RSS and its lifetime high-water mark.
 
-## Charts and report source
+## Charts and data
 
 The five chart images above are available individually in [charts/](charts/).
 The [metrics file](report-data.json) contains aggregated results and hashes for
 the evaluated checkpoint and frozen cases.
-
-Regenerate the HTML report and charts with Python 3.10 or later and Matplotlib.
-
-```sh
-python3 -m pip install matplotlib
-python3 scripts/render_report.py
-```

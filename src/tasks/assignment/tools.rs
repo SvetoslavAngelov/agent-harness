@@ -1,16 +1,18 @@
+//! Defines the tools for the roster assignment task.
+
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::tool_interface::Tool;
+use super::store::AssignmentStore;
 use crate::{
-    assignment::store::AssignmentStore,
     domain::{
         tool_catalogue::{ToolCallErrorKind, ToolDefinition, ToolError},
         tool_registry::ToolRegistry,
     },
+    tools::tool_interface::{Tool, ToolOutcome},
 };
 
-pub fn register_tools(registry: &mut ToolRegistry) {
+pub(crate) fn register_tools(registry: &mut ToolRegistry<AssignmentStore<'_>>) {
     for tool in [
         AssignmentTool::List,
         AssignmentTool::Update,
@@ -37,7 +39,7 @@ struct UpdateArguments {
     job_id: i64,
 }
 
-impl Tool for AssignmentTool {
+impl Tool<AssignmentStore<'_>> for AssignmentTool {
     fn get_definition(&self) -> ToolDefinition {
         let empty_schema = json!({
             "type": "object", "properties": {}, "required": [], "additionalProperties": false,
@@ -69,21 +71,25 @@ impl Tool for AssignmentTool {
         }
     }
 
-    fn execute(&self, arguments: &str, store: &mut AssignmentStore) -> Result<Value, ToolError> {
+    fn execute(
+        &self,
+        arguments: &str,
+        assignments: &mut AssignmentStore<'_>,
+    ) -> Result<ToolOutcome, ToolError> {
         let result = match self {
             Self::List => {
                 parse_arguments::<NoArguments>(arguments)?;
-                store.list_assignments()
+                assignments.list_assignments().map(ToolOutcome::Continue)
             }
             Self::Update => {
                 let arguments: UpdateArguments = parse_arguments(arguments)?;
-                store.update_assignment(arguments.user_id, arguments.job_id)
+                assignments
+                    .update_assignment(arguments.user_id, arguments.job_id)
+                    .map(ToolOutcome::Continue)
             }
             Self::Commit => {
                 parse_arguments::<NoArguments>(arguments)?;
-                store
-                    .finalise("model_commit")
-                    .map(|_| json!({ "finalised": true }))
+                return Ok(ToolOutcome::Finished(json!({ "finalised": true })));
             }
         };
         result.map_err(|error| ToolError {

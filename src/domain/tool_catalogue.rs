@@ -55,6 +55,20 @@ pub struct ToolResult {
     pub error: Option<ToolError>,
 }
 
+impl ToolResult {
+    pub fn new(call_id: ToolCallId, output: Result<Value, ToolError>) -> Self {
+        let (result, error) = match output {
+            Ok(value) => (Some(value), None),
+            Err(error) => (None, Some(error)),
+        };
+        Self {
+            call_id,
+            result,
+            error,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolError {
     pub kind: ToolCallErrorKind,

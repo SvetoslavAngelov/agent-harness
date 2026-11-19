@@ -4,14 +4,16 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 
-use super::ids::MessageId;
+use super::ids::{MessageId, serialize_display};
 use super::tool_catalogue::{ToolCall, ToolResult};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Message {
+    #[serde(serialize_with = "serialize_display")]
     pub message_id: MessageId,
     pub role: Role,
     pub parts: Vec<MessagePart>,
+    #[serde(serialize_with = "serialize_display")]
     pub timestamp: DateTime<Utc>,
 }
 
